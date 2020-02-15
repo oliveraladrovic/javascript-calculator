@@ -7,7 +7,8 @@ class App extends Component {
     numberOnScreen: '0',
     newNumber: true,
     decimal: false,
-    previousNumber: null
+    previousNumber: 0,
+    operator: ''
   };
   pressedButton = button => {
     switch (button) {
@@ -15,13 +16,13 @@ class App extends Component {
         this.clear();
         break;
       case 'divide':
-        this.setState({ nextOperator: '/' });
+        this.calculate('/');
         break;
       case 'multiply':
-        this.setState({ nextOperator: '×' });
+        this.calculate('×');
         break;
       case 'subtract':
-        this.setState({ nextOperator: '-' });
+        this.calculate('-');
         break;
       case 'seven':
         this.addDigit('7');
@@ -33,7 +34,7 @@ class App extends Component {
         this.addDigit('9');
         break;
       case 'add':
-        this.setState({ nextOperator: '+' });
+        this.calculate('+');
         break;
       case 'four':
         this.addDigit('4');
@@ -67,25 +68,35 @@ class App extends Component {
   };
 
   clear = () => {
-    this.setState({
-      numberOnScreen: '0',
-      newNumber: true,
-      decimal: false
-    });
+    if (this.state.newNumber) {
+      this.setState({
+        numberOnScreen: '0',
+        newNumber: true,
+        decimal: false,
+        previousNumber: 0,
+        operator: ''
+      });
+    } else {
+      this.setState({
+        numberOnScreen: '0',
+        newNumber: true,
+        decimal: false
+      });
+    }
   };
 
   addDigit = digit => {
     if (this.state.numberOnScreen.length < 14) {
       if (this.state.newNumber) {
-        if (digit !== '0') {
-          this.setState({
-            numberOnScreen: digit,
-            newNumber: false
-          });
-        }
+        this.setState({
+          numberOnScreen: digit,
+          newNumber: false
+        });
       } else {
         this.setState({
-          numberOnScreen: this.formatForScreen(digit)
+          numberOnScreen: this.formatForScreen(
+            this.state.numberOnScreen + digit
+          )
         });
       }
     }
@@ -101,8 +112,50 @@ class App extends Component {
     }
   };
 
-  formatForScreen = digit => {
-    let currentNumber = this.state.numberOnScreen + digit;
+  calculate = operator => {
+    if (this.state.newNumber) {
+      this.setState({
+        operator: operator
+      });
+    } else {
+      let parsedNumber = this.parse(this.state.numberOnScreen);
+      let previousNumber = 0;
+      if (this.state.operator === '') {
+        previousNumber = parsedNumber;
+      } else {
+        switch (this.state.operator) {
+          case '+':
+            previousNumber = this.state.previousNumber + parsedNumber;
+            break;
+          case '-':
+            previousNumber = this.state.previousNumber - parsedNumber;
+            break;
+          case '×':
+            previousNumber = this.state.previousNumber * parsedNumber;
+            break;
+          case '/':
+            previousNumber = this.state.previousNumber / parsedNumber;
+            break;
+          default:
+            break;
+        }
+      }
+      this.setState({
+        numberOnScreen: this.formatForScreen(previousNumber.toString()),
+        newNumber: true,
+        decimal: false,
+        previousNumber: previousNumber,
+        operator: operator
+      });
+    }
+  };
+
+  parse = numberString => {
+    numberString = numberString.replace(/\./g, '').replace(',', '.');
+    return parseFloat(numberString);
+  };
+
+  formatForScreen = currentNumber => {
     let integer = this.state.decimal
       ? currentNumber.slice(0, currentNumber.indexOf(','))
       : currentNumber;
@@ -128,7 +181,7 @@ class App extends Component {
       <div className='App'>
         <Display
           number={this.state.numberOnScreen}
-          nextOperator={this.state.nextOperator}
+          operator={this.state.operator}
         />
         <Buttons pressedButton={this.pressedButton} />
       </div>
