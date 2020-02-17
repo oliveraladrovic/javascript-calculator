@@ -8,7 +8,8 @@ class App extends Component {
     newNumber: true,
     decimal: false,
     previousNumber: 0,
-    operator: ''
+    operator: '',
+    showOperator: ''
   };
   pressedButton = button => {
     switch (button) {
@@ -55,6 +56,7 @@ class App extends Component {
         this.addDigit('3');
         break;
       case 'equals':
+        this.calculate('');
         break;
       case 'zero':
         this.addDigit('0');
@@ -68,13 +70,15 @@ class App extends Component {
   };
 
   clear = () => {
-    if (this.state.newNumber) {
+    const { newNumber } = this.state;
+    if (newNumber) {
       this.setState({
         numberOnScreen: '0',
         newNumber: true,
         decimal: false,
         previousNumber: 0,
-        operator: ''
+        operator: '',
+        showOperator: ''
       });
     } else {
       this.setState({
@@ -86,68 +90,133 @@ class App extends Component {
   };
 
   addDigit = digit => {
-    if (this.state.numberOnScreen.length < 14) {
-      if (this.state.newNumber) {
+    const { numberOnScreen, newNumber } = this.state;
+    if (newNumber) {
+      this.setState({
+        numberOnScreen: digit,
+        newNumber: digit === '0' ? true : false,
+        showOperator: ''
+      });
+    } else {
+      if (numberOnScreen.length < 14) {
         this.setState({
-          numberOnScreen: digit,
-          newNumber: false
-        });
-      } else {
-        this.setState({
-          numberOnScreen: this.formatForScreen(
-            this.state.numberOnScreen + digit
-          )
+          numberOnScreen: this.formatForScreen(numberOnScreen + digit)
         });
       }
     }
   };
 
   decimal = () => {
-    if (!this.state.decimal) {
+    const { numberOnScreen, newNumber, decimal } = this.state;
+    if (!decimal) {
       this.setState({
-        numberOnScreen: this.state.numberOnScreen + ',',
+        numberOnScreen: newNumber ? '0,' : numberOnScreen + ',',
         newNumber: false,
-        decimal: true
+        decimal: true,
+        showOperator: ''
       });
     }
   };
 
-  calculate = operator => {
-    if (this.state.newNumber) {
+  calculate = operation => {
+    const {
+      numberOnScreen,
+      previousNumber,
+      operator,
+      showOperator
+    } = this.state;
+    // Ako sam se predomislio i stisnuo neku drugu operaciju
+    if (showOperator !== '') {
       this.setState({
-        operator: operator
+        operator: operation,
+        showOperator: operation
       });
-    } else {
-      let parsedNumber = this.parse(this.state.numberOnScreen);
-      let previousNumber = 0;
-      if (this.state.operator === '') {
-        previousNumber = parsedNumber;
-      } else {
-        switch (this.state.operator) {
-          case '+':
-            previousNumber = this.state.previousNumber + parsedNumber;
-            break;
-          case '-':
-            previousNumber = this.state.previousNumber - parsedNumber;
-            break;
-          case '×':
-            previousNumber = this.state.previousNumber * parsedNumber;
-            break;
-          case '/':
-            previousNumber = this.state.previousNumber / parsedNumber;
-            break;
-          default:
-            break;
+      return;
+    }
+    if (numberOnScreen === 'Infinity' || numberOnScreen === 'NaN') {
+      return;
+    }
+    // Ako operator već postoji samim time postoji i prethodni broj, onda treba izračunati
+    // i postaviti nove vrijednosti, inače samo postaviti nove vrijednosti
+    let number = this.parse(numberOnScreen);
+    if (operator !== '') {
+      let result;
+      switch (operator) {
+        case '+':
+          result = previousNumber + number;
+          break;
+        case '-':
+          result = previousNumber - number;
+          break;
+        case '×':
+          result = previousNumber * number;
+          break;
+        case '/':
+          result = previousNumber / number;
+          break;
+        default:
+          break;
+      }
+      // Rezultat može biti negativan, ogroman, puno decimala, Infinity, NaN...
+      // provjeriti, formatirati, prikazati
+      let stringResult = result.toString();
+      if (result === Infinity || isNaN(result)) {
+        result = 0;
+        // Ako je rezultat u exponential obliku i veći od 14 znakova
+      } else if (stringResult.indexOf('e') >= 0 && stringResult.length > 14) {
+        stringResult = this.trimExponential(result);
+        stringResult = stringResult.replace('.', ',');
+      } else if (stringResult.length > 14 && stringResult.indexOf('e') < 0) {
+        // Ako rezultat NIJE u eksponencijalnom obliku ali je veći od 14 znakova
+        // Provjeriti dali je to cijeli broj ili je decimalni sa velikim cijelim dijelom
+        if (stringResult.indexOf('.') < 0 || stringResult.indexOf('.') > 13) {
+          result = result.toExponential();
+          stringResult = this.trimExponential(result);
+          stringResult = stringResult.replace('.', ',');
+          // Decimalni je broj sa previše decimala
+        } else {
+          stringResult = stringResult.slice(0, 14);
         }
+      } else if (false) {
+        // Ovdje dodati druge situacije ako postoji koja
+      } else {
+        stringResult = this.formatForScreen(stringResult.replace('.', ','));
       }
       this.setState({
-        numberOnScreen: this.formatForScreen(previousNumber.toString()),
+        numberOnScreen: stringResult,
         newNumber: true,
         decimal: false,
-        previousNumber: previousNumber,
-        operator: operator
+        previousNumber: result,
+        operator: operation,
+        showOperator: operation
+      });
+    } else {
+      this.setState({
+        numberOnScreen: this.formatForScreen(
+          number.toString().replace('.', ',')
+        ),
+        newNumber: true,
+        decimal: false,
+        previousNumber: number,
+        operator: operation,
+        showOperator: operation
       });
     }
+  };
+
+  trimExponential = result => {
+    let stringResult = result.toString();
+    if (stringResult.length > 14) {
+      let nonExpPart = stringResult.slice(0, stringResult.indexOf('e'));
+      let expPart = stringResult.slice(
+        stringResult.indexOf('e'),
+        stringResult.length
+      );
+      nonExpPart = nonExpPart.slice(0, 14 - expPart.length - 2);
+      nonExpPart = parseFloat(nonExpPart);
+      stringResult = nonExpPart.toString() + expPart;
+    }
+    return stringResult;
   };
 
   parse = numberString => {
@@ -156,23 +225,26 @@ class App extends Component {
   };
 
   formatForScreen = currentNumber => {
-    let integer = this.state.decimal
-      ? currentNumber.slice(0, currentNumber.indexOf(','))
-      : currentNumber;
-    integer = integer.replace(/\./g, '');
-    let formattedNumber = '';
-    while (integer.length > 3) {
-      formattedNumber =
-        '.' + integer.slice(integer.length - 3) + formattedNumber;
-      integer = integer.slice(0, integer.length - 3);
-    }
-    formattedNumber = integer + formattedNumber;
-    if (this.state.decimal) {
-      formattedNumber += currentNumber.slice(
+    let sign, intPart, decPart;
+    sign = currentNumber.slice(0, 1) === '-' ? '-' : '';
+    if (currentNumber.indexOf(',') >= 0) {
+      intPart = currentNumber.slice(sign.length, currentNumber.indexOf(','));
+      decPart = currentNumber.slice(
         currentNumber.indexOf(','),
         currentNumber.length
       );
+    } else {
+      intPart = currentNumber.slice(sign.length, currentNumber.length);
+      decPart = '';
     }
+    intPart = intPart.replace(/\./g, '');
+    let formattedNumber = '';
+    while (intPart.length > 3) {
+      formattedNumber =
+        '.' + intPart.slice(intPart.length - 3) + formattedNumber;
+      intPart = intPart.slice(0, intPart.length - 3);
+    }
+    formattedNumber = sign + intPart + formattedNumber + decPart;
     return formattedNumber;
   };
 
@@ -181,7 +253,7 @@ class App extends Component {
       <div className='App'>
         <Display
           number={this.state.numberOnScreen}
-          operator={this.state.operator}
+          operator={this.state.showOperator}
         />
         <Buttons pressedButton={this.pressedButton} />
       </div>

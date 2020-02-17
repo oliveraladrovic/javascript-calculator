@@ -1,6 +1,76 @@
 import React from 'react';
 
 const Buttons = ({ pressedButton }) => {
+  document.documentElement.onkeydown = btnPressed;
+  function btnPressed(e) {
+    let btn;
+    switch (e.key) {
+      case 'Delete':
+      case 'c':
+      case 'C':
+        btn = document.getElementById('clear');
+        break;
+      case '/':
+        btn = document.getElementById('divide');
+        break;
+      case '*':
+        btn = document.getElementById('multiply');
+        break;
+      case '-':
+        btn = document.getElementById('subtract');
+        break;
+      case '7':
+        btn = document.getElementById('seven');
+        break;
+      case '8':
+        btn = document.getElementById('eight');
+        break;
+      case '9':
+        btn = document.getElementById('nine');
+        break;
+      case '+':
+        btn = document.getElementById('add');
+        break;
+      case '4':
+        btn = document.getElementById('four');
+        break;
+      case '5':
+        btn = document.getElementById('five');
+        break;
+      case '6':
+        btn = document.getElementById('six');
+        break;
+      case '1':
+        btn = document.getElementById('one');
+        break;
+      case '2':
+        btn = document.getElementById('two');
+        break;
+      case '3':
+        btn = document.getElementById('three');
+        break;
+      case 'Enter':
+      case '=':
+        btn = document.getElementById('equals');
+        break;
+      case '0':
+        btn = document.getElementById('zero');
+        break;
+      case ',':
+      case '.':
+        btn = document.getElementById('decimal');
+        break;
+      default:
+        break;
+    }
+    if (btn !== undefined) {
+      btn.classList.add('button-pressed');
+      btn.click();
+      setTimeout(() => {
+        btn.classList.remove('button-pressed');
+      }, 100);
+    }
+  }
   return (
     <div id='buttons'>
       <button
